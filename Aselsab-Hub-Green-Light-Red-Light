@@ -1,0 +1,426 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser")
+local ScriptContext = game:GetService("ScriptContext")
+local Teams = game:GetService("Teams")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+
+local player = Players.LocalPlayer
+
+-- GUI'nin ekleneceği güvenli yeri belirle
+local parentContainer = nil
+if gethui then
+	parentContainer = gethui()
+elseif CoreGui:FindFirstChild("RobloxGui") then
+	parentContainer = CoreGui
+else
+	parentContainer = player:WaitForChild("PlayerGui")
+end
+
+-- Eski kalıntıları temizle
+if parentContainer:FindFirstChild("AselsanHubFixed") then
+	parentContainer.AselsanHubFixed:Destroy()
+end
+
+-- 1. Anti-Kick & Remote Intercept
+pcall(function()
+	if getrawmetatable and setreadonly and newcclosure then
+		local rawMeta = getrawmetatable(game)
+		setreadonly(rawMeta, false)
+		local oldNamecall = rawMeta.__namecall
+
+		rawMeta.__namecall = newcclosure(function(self, ...)
+			local method = getnamecallmethod()
+
+			if method == "Kick" or method == "kick" then
+				if self == player then
+					warn("[ASELSAN HUB] Kick engellendi.")
+					return nil
+				end
+			end
+
+			if method == "FireServer" or method == "InvokeServer" then
+				local remoteName = string.lower(tostring(self.Name))
+				if string.find(remoteName, "kick") 
+					or string.find(remoteName, "ban") 
+					or string.find(remoteName, "anticheat") 
+					or string.find(remoteName, "security") 
+					or string.find(remoteName, "flag") 
+					or string.find(remoteName, "detection") then
+					warn("[ASELSAN HUB] Şüpheli Remote engellendi: " .. self.Name)
+					return nil
+				end
+			end
+
+			return oldNamecall(self, ...)
+		end)
+
+		setreadonly(rawMeta, true)
+	end
+end)
+
+-- 2. Anti-AFK
+pcall(function()
+	player.Idled:Connect(function()
+		VirtualUser:CaptureController()
+		VirtualUser:ClickButton2(Vector2.new(0, 0))
+	end)
+end)
+
+local rgbTextParts = {}
+
+-- Main ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AselsanHubFixed"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = parentContainer
+
+-- Hub Toggle Butonu (Sağ üst köşe)
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleHubButton"
+toggleBtn.Size = UDim2.new(0, 120, 0, 36)
+toggleBtn.Position = UDim2.new(1, -135, 0, 15)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+toggleBtn.BorderSizePixel = 0
+toggleBtn.Text = "ASELSAN HUB"
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.TextSize = 12
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.Active = true
+toggleBtn.Parent = screenGui
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 6)
+toggleCorner.Parent = toggleBtn
+
+table.insert(rgbTextParts, toggleBtn)
+
+-- Outer Frame (RGB Çerçeve)
+local outerFrame = Instance.new("Frame")
+outerFrame.Name = "OuterFrame"
+outerFrame.Size = UDim2.new(0, 484, 0, 384)
+outerFrame.Position = UDim2.new(0.5, -242, 0.5, -192)
+outerFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+outerFrame.BorderSizePixel = 0
+outerFrame.Active = true
+outerFrame.Draggable = true
+outerFrame.Parent = screenGui
+
+local outerCorner = Instance.new("UICorner")
+outerCorner.CornerRadius = UDim.new(0, 8)
+outerCorner.Parent = outerFrame
+
+local outerGradient = Instance.new("UIGradient")
+outerGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+	ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 255, 0)),
+	ColorSequenceKeypoint.new(0.4, Color3.fromRGB(0, 255, 0)),
+	ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0, 255, 255)),
+	ColorSequenceKeypoint.new(0.8, Color3.fromRGB(0, 0, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 255))
+})
+outerGradient.Parent = outerFrame
+
+-- İç Panel Container
+local mainContainer = Instance.new("Frame")
+mainContainer.Name = "MainContainer"
+mainContainer.Size = UDim2.new(1, -4, 1, -4)
+mainContainer.Position = UDim2.new(0, 2, 0, 2)
+mainContainer.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+mainContainer.BorderSizePixel = 0
+mainContainer.Parent = outerFrame
+
+local innerCorner = Instance.new("UICorner")
+innerCorner.CornerRadius = UDim.new(0, 6)
+innerCorner.Parent = mainContainer
+
+-- Üst Başlık
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
+titleLabel.Size = UDim2.new(1, -55, 0, 30)
+titleLabel.Position = UDim2.new(0, 10, 0, 5)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "ASELSAN HUB v2 - SQUID GAME X"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 14
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = mainContainer
+
+table.insert(rgbTextParts, titleLabel)
+
+-- Kapatma (Close - X) Tuşu
+local closeBtn = Instance.new("TextButton")
+closeBtn.Name = "CloseButton"
+closeBtn.Size = UDim2.new(0, 26, 0, 26)
+closeBtn.Position = UDim2.new(1, -31, 0, 5)
+closeBtn.BackgroundColor3 = Color3.fromRGB(220, 40, 40)
+closeBtn.BorderSizePixel = 0
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.TextSize = 13
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.Parent = mainContainer
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 6)
+closeCorner.Parent = closeBtn
+
+closeBtn.MouseButton1Click:Connect(function()
+	screenGui:Destroy()
+end)
+
+-- Sol İçerik Alanı (Artık İçerikler Solda)
+local contentArea = Instance.new("Frame")
+contentArea.Name = "ContentArea"
+contentArea.Size = UDim2.new(1, -130, 1, -45)
+contentArea.Position = UDim2.new(0, 5, 0, 40)
+contentArea.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+contentArea.BorderSizePixel = 0
+contentArea.Parent = mainContainer
+
+local contentCorner = Instance.new("UICorner")
+contentCorner.CornerRadius = UDim.new(0, 6)
+contentCorner.Parent = contentArea
+
+-- Sağ Sekme Menüsü (Artık Sekmeler Sağda)
+local sidebar = Instance.new("Frame")
+sidebar.Name = "Sidebar"
+sidebar.Size = UDim2.new(0, 110, 1, -45)
+sidebar.Position = UDim2.new(1, -115, 0, 40)
+sidebar.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+sidebar.BorderSizePixel = 0
+sidebar.Parent = mainContainer
+
+local sidebarCorner = Instance.new("UICorner")
+sidebarCorner.CornerRadius = UDim.new(0, 6)
+sidebarCorner.Parent = sidebar
+
+local sidebarLayout = Instance.new("UIListLayout")
+sidebarLayout.Padding = UDim.new(0, 5)
+sidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
+sidebarLayout.Parent = sidebar
+
+local sidebarPadding = Instance.new("UIPadding")
+sidebarPadding.PaddingTop = UDim.new(0, 5)
+sidebarPadding.PaddingLeft = UDim.new(0, 5)
+sidebarPadding.PaddingRight = UDim.new(0, 5)
+sidebarPadding.Parent = sidebar
+
+-- --- SEKMELER ---
+
+-- 1. Main Sekmesi
+local mainTabFrame = Instance.new("ScrollingFrame")
+mainTabFrame.Name = "MainTabFrame"
+mainTabFrame.Size = UDim2.new(1, -10, 1, -10)
+mainTabFrame.Position = UDim2.new(0, 5, 0, 5)
+mainTabFrame.BackgroundTransparency = 1
+mainTabFrame.BorderSizePixel = 0
+mainTabFrame.ScrollBarThickness = 4
+mainTabFrame.Visible = true
+mainTabFrame.Parent = contentArea
+
+local mainLayout = Instance.new("UIListLayout")
+mainLayout.Padding = UDim.new(0, 6)
+mainLayout.SortOrder = Enum.SortOrder.LayoutOrder
+mainLayout.Parent = mainTabFrame
+
+local mainLabel = Instance.new("TextLabel")
+mainLabel.Size = UDim2.new(1, 0, 0, 25)
+mainLabel.BackgroundTransparency = 1
+mainLabel.Text = "[ Main / Ana Özellikler ]"
+mainLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+mainLabel.TextSize = 12
+mainLabel.Font = Enum.Font.GothamBold
+mainLabel.Parent = mainTabFrame
+
+-- 2. Takım Sekmesi
+local teamTabFrame = Instance.new("ScrollingFrame")
+teamTabFrame.Name = "TeamTabFrame"
+teamTabFrame.Size = UDim2.new(1, -10, 1, -10)
+teamTabFrame.Position = UDim2.new(0, 5, 0, 5)
+teamTabFrame.BackgroundTransparency = 1
+teamTabFrame.BorderSizePixel = 0
+teamTabFrame.ScrollBarThickness = 4
+teamTabFrame.Visible = false
+teamTabFrame.Parent = contentArea
+
+local teamLayout = Instance.new("UIListLayout")
+teamLayout.Padding = UDim.new(0, 6)
+teamLayout.SortOrder = Enum.SortOrder.LayoutOrder
+teamLayout.Parent = teamTabFrame
+
+local teamLabel = Instance.new("TextLabel")
+teamLabel.Size = UDim2.new(1, 0, 0, 25)
+teamLabel.BackgroundTransparency = 1
+teamLabel.Text = "[ Takım Seçimi & Ayarları ]"
+teamLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+teamLabel.TextSize = 12
+teamLabel.Font = Enum.Font.GothamBold
+teamLabel.Parent = teamTabFrame
+
+-- Özel ve Ayrıştırılmış Takım Değiştirme Fonksiyonu
+local function forceJoinTeam(roleName)
+	pcall(function()
+		local searchPattern = string.lower(roleName)
+
+		-- 1. Yöntem: İstemci Üzerinden Doğrudan Takım Eşleşmesi
+		local targetTeam = nil
+		for _, team in ipairs(Teams:GetTeams()) do
+			local tName = string.lower(team.Name)
+			if string.find(tName, searchPattern) then
+				targetTeam = team
+				break
+			end
+		end
+
+		if targetTeam then
+			player.Team = targetTeam
+		end
+
+		-- 2. Yöntem: ReplicatedStorage Üzerindeki Spesifik Remote Event Kontrolü
+		for _, item in ipairs(ReplicatedStorage:GetDescendants()) do
+			if item:IsA("RemoteEvent") or item:IsA("RemoteFunction") then
+				local itemName = string.lower(item.Name)
+				
+				-- Sadece seçilen role tam uyan veya genel takım remote'larını tetikle
+				if string.find(itemName, searchPattern) 
+					or string.find(itemName, "team") 
+					or string.find(itemName, "role") 
+					or string.find(itemName, "select") then
+					
+					-- Karşı tarafın yanlış takıma atmasını engellemek için sadece tam rol adını gönder
+					if item:IsA("RemoteEvent") then
+						item:FireServer(roleName)
+					elseif item:IsA("RemoteFunction") then
+						item:InvokeServer(roleName)
+					end
+				end
+			end
+		end
+	end)
+end
+
+-- Frontman Butonu
+local frontmanBtn = Instance.new("TextButton")
+frontmanBtn.Name = "FrontmanButton"
+frontmanBtn.Size = UDim2.new(1, 0, 0, 35)
+frontmanBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+frontmanBtn.BorderSizePixel = 0
+frontmanBtn.Text = "🎭 Frontman Takımına Geç"
+frontmanBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+frontmanBtn.TextSize = 12
+frontmanBtn.Font = Enum.Font.GothamBold
+frontmanBtn.Parent = teamTabFrame
+
+local frontmanCorner = Instance.new("UICorner")
+frontmanCorner.CornerRadius = UDim.new(0, 6)
+frontmanCorner.Parent = frontmanBtn
+
+frontmanBtn.MouseButton1Click:Connect(function()
+	forceJoinTeam("Frontman")
+end)
+
+-- Guards Butonu
+local guardsBtn = Instance.new("TextButton")
+guardsBtn.Name = "GuardsButton"
+guardsBtn.Size = UDim2.new(1, 0, 0, 35)
+guardsBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+guardsBtn.BorderSizePixel = 0
+guardsBtn.Text = "🔻 Guards (Muhafız) Takımına Geç"
+guardsBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+guardsBtn.TextSize = 12
+guardsBtn.Font = Enum.Font.GothamBold
+guardsBtn.Parent = teamTabFrame
+
+local guardsCorner = Instance.new("UICorner")
+guardsCorner.CornerRadius = UDim.new(0, 6)
+guardsCorner.Parent = guardsBtn
+
+guardsBtn.MouseButton1Click:Connect(function()
+	forceJoinTeam("Guard")
+end)
+
+-- Sekme Oluşturma
+local function createTabButton(name, layoutOrder)
+	local tabBtn = Instance.new("TextButton")
+	tabBtn.Name = name .. "TabButton"
+	tabBtn.Size = UDim2.new(1, 0, 0, 30)
+	tabBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	tabBtn.BorderSizePixel = 0
+	tabBtn.Text = name
+	tabBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
+	tabBtn.TextSize = 11
+	tabBtn.Font = Enum.Font.GothamBold
+	tabBtn.LayoutOrder = layoutOrder
+	tabBtn.Parent = sidebar
+
+	local btnCorner = Instance.new("UICorner")
+	btnCorner.CornerRadius = UDim.new(0, 4)
+	btnCorner.Parent = tabBtn
+
+	return tabBtn
+end
+
+local mainTabBtn = createTabButton("Main", 1)
+local teamTabBtn = createTabButton("Takım", 2)
+
+local tabs = {
+	{Btn = mainTabBtn, Frame = mainTabFrame},
+	{Btn = teamTabBtn, Frame = teamTabFrame}
+}
+
+local function switchTab(selectedTab)
+	for _, tab in ipairs(tabs) do
+		if tab == selectedTab then
+			tab.Frame.Visible = true
+			tab.Btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+			tab.Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		else
+			tab.Frame.Visible = false
+			tab.Btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+			tab.Btn.TextColor3 = Color3.fromRGB(180, 180, 180)
+		end
+	end
+end
+
+switchTab(tabs[1])
+
+mainTabBtn.MouseButton1Click:Connect(function()
+	switchTab(tabs[1])
+end)
+
+teamTabBtn.MouseButton1Click:Connect(function()
+	switchTab(tabs[2])
+end)
+
+-- RGB Döngüsü
+RunService.RenderStepped:Connect(function()
+	pcall(function()
+		local tickVal = tick() * 2
+		local hue = tickVal % 5 / 5
+		local currentRgb = Color3.fromHSV(hue, 1, 1)
+
+		outerGradient.Rotation = (tick() * 50) % 360
+
+		for _, obj in ipairs(rgbTextParts) do
+			if obj and obj.Parent then
+				if obj:IsA("TextButton") or obj:IsA("TextLabel") then
+					obj.TextColor3 = currentRgb
+				end
+			end
+		end
+	end)
+end)
+
+-- Hub Toggle İşlevi
+local mainVisible = true
+toggleBtn.MouseButton1Click:Connect(function()
+	mainVisible = not mainVisible
+	outerFrame.Visible = mainVisible
+end)
